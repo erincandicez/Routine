@@ -81,6 +81,12 @@
   .foot { margin-top:16px; text-align:center; }
   .reset { background:none; border:none; color:var(--faint); font-size:12px; cursor:pointer; text-decoration:underline; font-family:inherit; }
   .foot-note { margin-top:10px; text-align:center; font-size:11.5px; color:var(--faint); }
+  .cel { position:fixed; inset:0; z-index:50; background:rgba(20,28,24,0.82); display:flex; align-items:center; justify-content:center; }
+  .cel-cv { position:absolute; inset:0; width:100%; height:100%; }
+  .cel-msg { position:relative; text-align:center; padding:0 30px; }
+  .cel-h { font-family:Georgia,"Times New Roman",serif; font-size:30px; color:#F6F8F5; }
+  .cel-sub { font-size:15px; color:#D7E0D3; margin-top:10px; line-height:1.5; }
+  .cel-x { font-size:12px; color:#9FB0A4; margin-top:22px; text-transform:uppercase; letter-spacing:2px; }
 </style>
 </head>
 <body>
@@ -124,6 +130,17 @@ var todayIdx = now.getDay();
 
 function isIronDay(s){ var diff=Math.round((parseDs(s)-IRON_ANCHOR)/86400000); return ((((diff%2)+2)%2)===0); }
 function isGuaDay(s){ return !!GUA_DAYS[dow(s)]; }
+function choreItems(s){
+  var di=dow(s); var it=[];
+  if(di===1||di===4||di===6) it.push({id:"ch-vacuum", t:"Vacuum", time:"1:30 PM", chore:true, optional:true});
+  if(di===2) it.push({id:"ch-dust", t:"Dust", time:"1:30 PM", chore:true, optional:true});
+  if(di===3) it.push({id:"ch-tidy", t:"Tidy / wipe down", time:"1:30 PM", chore:true, optional:true});
+  if(di===5) it.push({id:"ch-laundry", t:"Laundry", time:"10:00 AM", chore:true, optional:true});
+  if(di===6) it.push({id:"ch-mop", t:"Mop", time:"4:30 PM", chore:true, optional:true});
+  return it;
+}
+function choreSection(s){ var it=choreItems(s); return it.length ? {sec:"Home", items:it} : null; }
+function choreBonus(s){ var it=choreItems(s), c=0; for(var i=0;i<it.length;i++){ if(checked(s,it[i].id)) c++; } return c*5; }
 
 function amSections(s){
   var di = dow(s);
@@ -149,6 +166,7 @@ function amSections(s){
   }
   sec.push({sec:"Skincare", items:[
     {id:"am-rinse", t:"Water rinse", d:"in the shower"},
+    {id:"am-teeth", t:"Brush teeth", time:"8:35 AM", since:"2026-08-11"},
     {id:"am-serum", t:"Toner pad, Bean Essence, serum", d:"Dewy serum"},
     {id:"am-moist", t:"Eye cream, light moisturizer"},
     {id:"am-spf", t:"Sunscreen", essential:true, time:"8:30 AM"},
@@ -166,7 +184,7 @@ function pmSections(s){
   var tr = TREAT[di];
   var sec = [];
   var fuel = [];
-  if(isIronDay(s)) fuel.push({id:"pm-iron", t:"Iron + OJ", d:"every other day, away from coffee", iron:true});
+  if(isIronDay(s)) fuel.push({id:"pm-iron", t:"Iron + OJ", d:"every other day, away from coffee", time:"2:00 PM", iron:true});
   if(di!==0) fuel.push({id:"pm-pre", t:"Theanine pre-workout", d:"before workout", time:"5:30 PM"});
   if(fuel.length) sec.push({sec:"Fuel", items:fuel});
   if(di!==0){
@@ -187,6 +205,7 @@ function pmSections(s){
   sec.push({sec:"Wind down", items:[
     {id:"pm-read", t:"Read", time:"8:00 PM"},
     {id:"pm-log", t:"Log food", d:"end of day", time:"9:00 PM"},
+    {id:"pm-teeth", t:"Brush teeth", d:"after your last snack", time:"9:40 PM", since:"2026-08-11"},
     {id:"pm-bed", t:"Bedtime", time:"9:45 PM"}
   ]});
   return sec;
@@ -195,7 +214,7 @@ function dayAll(s){
   var all=[]; amSections(s).concat(pmSections(s)).forEach(function(x){ x.items.forEach(function(i){ all.push(i); }); });
   return all;
 }
-function reqNonRest(s){ return dayAll(s).filter(function(i){ return !i.optional && !i.rest; }); }
+function reqNonRest(s){ return dayAll(s).filter(function(i){ return !i.optional && !i.rest && (!i.since || s>=i.since); }); }
 function restItems(s){ return dayAll(s).filter(function(i){ return i.rest; }); }
 
 var STORE="routine-data", RSTORE="routine-redeemed", LSTORE="routine-redlog";
@@ -224,6 +243,7 @@ function earnedPoints(){
     var s=ds(d);
     if(essDone(s)){ run++; pts+=10; if(perfect(s))pts+=5; if(sundayAll3(s))pts+=5; if(run%7===0)pts+=25; }
     else run=0;
+    pts += choreBonus(s);
     d.setDate(d.getDate()+1);
   }
   return pts;
@@ -236,6 +256,7 @@ function weekPoints(){
   while(d<=end){
     var s=ds(d);
     if(s>=START_DATE && essDone(s)){ pts+=10; if(perfect(s))pts+=5; if(sundayAll3(s))pts+=5; }
+    if(s>=START_DATE) pts += choreBonus(s);
     d.setDate(d.getDate()+1);
   }
   return pts;
@@ -277,17 +298,40 @@ function redeem(rid){
 }
 function doReset(){
   if(!resetArmed){ resetArmed=true; render(); return; }
-  data={}; redeemed=0; redlog=[];
-  try { localStorage.removeItem(STORE); localStorage.removeItem(RSTORE); localStorage.removeItem(LSTORE); } catch(e){}
+  data={}; redeemed=0; redlog=[]; celebrated=0;
+  try { localStorage.removeItem(STORE); localStorage.removeItem(RSTORE); localStorage.removeItem(LSTORE); localStorage.removeItem(CEL_STORE); } catch(e){}
   resetArmed=false; render();
 }
 function mix(a,b,t){ return "rgb("+Math.round(a[0]*(1-t)+b[0]*t)+","+Math.round(a[1]*(1-t)+b[1]*t)+","+Math.round(a[2]*(1-t)+b[2]*t)+")"; }
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
+var CEL_STORE="routine-cel";
+var celebrated=0;
+try { celebrated = parseInt(localStorage.getItem(CEL_STORE),10) || 0; } catch(e){ celebrated=0; }
+
+function celebrate(weeks){
+  var ov=document.createElement("div"); ov.className="cel";
+  ov.innerHTML="<canvas class='cel-cv'></canvas><div class='cel-msg'><div class='cel-h'>A full week, complete</div><div class='cel-sub'>"+weeks+" week"+(weeks>1?"s":"")+" in a row. Your habits are taking root.</div><div class='cel-x'>tap to close</div></div>";
+  document.body.appendChild(ov);
+  var cv=ov.querySelector(".cel-cv"); var ctx=cv.getContext("2d");
+  var W=cv.width=window.innerWidth, H=cv.height=window.innerHeight;
+  var cols=["#ffff77","#C6E246","#6E9A6B","#B0842E","#8195BC","#F6F8F5"];
+  var parts=[], running=true;
+  function burst(x,y){ var c=cols[Math.floor(Math.random()*cols.length)]; for(var i=0;i<54;i++){ var a=Math.random()*Math.PI*2, sp=Math.random()*4+1.2; parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col:(Math.random()<0.3?cols[Math.floor(Math.random()*cols.length)]:c)}); } }
+  function loop(){ if(!running) return; ctx.fillStyle="rgba(20,28,24,0.20)"; ctx.fillRect(0,0,W,H); for(var i=0;i<parts.length;i++){ var p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.03; p.life-=0.011; if(p.life<0)p.life=0; ctx.globalAlpha=p.life; ctx.fillStyle=p.col; ctx.fillRect(p.x,p.y,3,3); } ctx.globalAlpha=1; parts=parts.filter(function(p){return p.life>0;}); requestAnimationFrame(loop); }
+  loop();
+  burst(W*0.5, H*0.35);
+  var shots=0; var iv=setInterval(function(){ burst(W*(0.2+Math.random()*0.6), H*(0.18+Math.random()*0.4)); shots++; if(shots>=6) clearInterval(iv); }, 480);
+  function close(){ running=false; clearInterval(iv); if(ov.parentNode) ov.parentNode.removeChild(ov); }
+  ov.addEventListener("click", close);
+  setTimeout(close, 6500);
+}
+
 function render(){
   var isAM = period==="am";
   var accent = isAM ? "#B0842E" : "#8195BC";
-  var sections = isAM ? amSections(today) : pmSections(today);
+  var sections = (isAM ? amSections(today) : pmSections(today)).slice();
+  var choreSec = choreSection(today); if(choreSec) sections = sections.concat([choreSec]);
   var hbg = isAM
     ? "linear-gradient(160deg,#F3E3BE 0%,#ECE6D3 55%,#EDF1EC 100%)"
     : "linear-gradient(160deg,#384A61 0%,#4B5970 55%,#69768A 100%)";
@@ -303,6 +347,7 @@ function render(){
   var pct = reqInPeriod ? Math.round(doneInPeriod/reqInPeriod*100) : 0;
   var allDone = reqInPeriod>0 && doneInPeriod===reqInPeriod;
   var cs=currentStreak(), bs=bestStreak(), bnk=bank(), wk=weekPoints();
+  if(cs>0 && cs%7===0 && cs>celebrated){ celebrated=cs; try{localStorage.setItem(CEL_STORE,""+cs);}catch(e){} setTimeout(function(){ celebrate(cs/7); }, 400); }
 
   var checkSvg = "<svg width='14' height='14' viewBox='0 0 24 24' fill='none'><path d='M5 13l4 4L19 7' stroke='#F6F8F5' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/></svg>";
   var flame = "<svg width='16' height='16' viewBox='0 0 24 24' fill='"+accent+"'><path d='M12 2s5 4 5 9a5 5 0 01-10 0c0-1.5.7-2.8 1.5-3.5C8 9 9 10 9 11c0-2 1.5-4 3-5-.5 1.5 0 2.5 1 3 .3-2-1-4-1-7z'/></svg>";
@@ -334,7 +379,8 @@ function render(){
       var bg = it.treatment ? (isAM?"rgba(176,132,46,.06)":"rgba(129,149,188,.09)") : "transparent";
       var det="";
       if(it.essential) det += "<span style='color:"+accent+";font-weight:600'>Essential</span>";
-      if(it.optional) det += "<span style='color:var(--faint)'>Optional</span>";
+      if(it.chore) det += "<span style='color:"+accent+";font-weight:600'>+5 bonus</span>";
+      else if(it.optional) det += "<span style='color:var(--faint)'>Optional</span>";
       if(it.d){ det += (det? " &middot; ":"") + esc(it.d); }
       rows += "<button class='row"+(on?" done":"")+"' data-toggle='"+it.id+"' style='background:"+bg+"'>";
       rows += "<span class='box"+(on?" on":"")+"'>"+checkSvg+"</span>";
@@ -345,6 +391,9 @@ function render(){
     if(rows){ h += "<div class='sec'><div class='sec-h'>"+esc(sc.sec)+"</div><div class='list'>"+rows+"</div></div>"; }
   });
 
+  if(choreSec){
+    h += "<div class='hist-foot' style='margin:12px 4px 0'>Home tasks earn bonus points and do not affect your streak.</div>";
+  }
   if(todayIdx===0 && !isAM){
     h += "<div class='hist-foot' style='margin:12px 4px 0'>Active rest: do any one to keep your streak, all three for +5 bonus points.</div>";
   }
