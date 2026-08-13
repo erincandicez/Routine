@@ -154,14 +154,11 @@ function amSections(s){
     sec.push({sec:"Active rest", items:[
       {id:"su-stretch", t:"Stretching", rest:true},
       {id:"su-med", t:"Meditation", rest:true},
-      {id:"su-out", t:"Go outside", rest:true},
-      {id:"am-shower", t:"Shower", time:"8:30 AM"}
+      {id:"su-out", t:"Go outside", rest:true}
     ]});
   } else {
     sec.push({sec:"Move", items:[
-      {id:"am-brush", t:"Dry brush", d:"before shower", optional:true},
-      {id:"am-cardio", t:"Workout", d:"30 min cardio", time:"8:00 AM"},
-      {id:"am-shower", t:"Shower", time:"8:30 AM"}
+      {id:"am-cardio", t:"30 min movement", d:"yoga, walk, stretch, or rest if you need it"}
     ]});
   }
   sec.push({sec:"Skincare", items:[
@@ -173,7 +170,7 @@ function amSections(s){
     {id:"am-roller", t:"Cold roller", d:"while it absorbs"}
   ]});
   var mind = [];
-  if(di!==0){ mind.push({id:"am-med", t:"Meditation or stretching", d:"10 to 15 min", time:"8:45 AM"}); }
+  if(di!==0){ mind.push({id:"am-med", t:"Meditation", d:"10 to 15 min", time:"8:45 AM"}); }
   mind.push({id:"am-meds", t:"9am meds", d:"Wellbutrin, allergy, multivitamin", time:"9:00 AM"});
   sec.push({sec:"Mind", items:mind});
   sec.push({sec:"Midday", items:[{id:"am-lunch", t:"Lunch", time:"12:00 PM"}]});
@@ -190,7 +187,13 @@ function pmSections(s){
   if(di!==0){
     sec.push({sec:"Move", items:[
       {id:"pm-workout", t:"Workout", time:"5:45 PM"},
-      {id:"pm-shower", t:"Shower", d:"after workout"}
+      {id:"pm-brush", t:"Dry brush", d:"before shower", optional:true},
+      {id:"pm-shower", t:"Shower", d:"after your workout"}
+    ]});
+  } else {
+    sec.push({sec:"Reset", items:[
+      {id:"pm-brush", t:"Dry brush", d:"before shower", optional:true},
+      {id:"pm-shower", t:"Shower"}
     ]});
   }
   sec.push({sec:"Meal", items:[{id:"pm-dinner", t:"Dinner", time:"7:00 PM"}]});
@@ -428,7 +431,7 @@ function render(){
   h += "<div class='floor'><div class='panel-h'>The floor</div><p>Sunscreen in the morning, cleanse at night. On a low day, the floor plus moisturizer still counts as a win and keeps your streak.</p></div>";
 
   h += "<div class='foot'><button class='reset' data-reset>"+(resetArmed?"Tap again to erase everything":"Reset all data")+"</button></div>";
-  h += "<div class='foot-note'>Saves on this device. Checks reset each morning; streak, history, and points are kept.</div>";
+  h += "<div class='foot-note'>Saves on this device. Checks reset each morning; streak, history, and points are kept. &middot; build 0811-5</div>";
 
   document.getElementById("app").innerHTML = h;
 }
